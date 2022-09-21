@@ -11,6 +11,59 @@ from framework.message_types import (
         MSG_SYSTEM
         )
 
+##
+# not sure if this belongs here or in the shallow parse dir
+# try to determine if a sentence/utterance is a question
+
+# note - 'which' and 'how' will need special handling
+abs_qwords = ['is', 'does', 'do', 'did', 'are', 'can', 'who', 'would', 'which', 'how']
+
+# if a sentence starts with one of these ...
+qwords = ['have', 'or', 'could', 'would', 'should', 'when', 'where', 'why', 'whose', 'whom', 'why', 'is', 'does', 'do', 'did', 'are']
+
+# it must be followed by one of these
+aux_verbs = ['be', 'can', "can't", 'could', 'dare', 'do', 'have', 'may', 'might', 'must', 'need', 'ought', 'shall', 'should', 'will', 'would', 'was', 'were']
+
+def get_stype(sentence):
+    sentence_type = 'unknown'
+    if len(sentence.split(" ")) > 2:
+        # discard samples less than 2 words in length
+        first_word = sentence.split(" ")[0].lower().strip()
+        second_word = sentence.split(" ")[1].lower().strip()
+
+        if first_word == 'will':
+            # special case the word 'will'
+            sentence_type = 'Q'
+            if second_word == 'is' or second_word == 'can':
+                # actually many just aux_verb
+                sentence_type = 'I'
+
+        # need special handling for 'what', also as in "what time is it"
+        # versus "what you don't know can hurt you" to "what happens in
+        # vegas stays in vegas". we are going to soon need to start
+        # dealing with classes of words here and the exceptions to
+        # those combinations rather than this edge case approach
+        if first_word == 'what':
+            # special case the word 'what'
+            sentence_type = 'Q'
+            if second_word == 'the':
+                sentence_type = 'I'
+
+        if sentence_type == 'unknown':
+            # still don't know what type of sentence
+            if first_word in abs_qwords:
+                sentence_type = 'Q'
+            else:
+                if (sentence.find("?") > -1 or first_word in qwords and (second_word in qwords or second_word in aux_verbs)):
+                    sentence_type = 'Q'
+                else:
+                    sentence_type = 'I'
+
+    return sentence_type
+##
+
+
+
 class UttProc:
     # English language specific intent parser. Monitors the save_text/ FIFO 
     # for utterances to process. Emits utterance messages. If skill_id
@@ -114,6 +167,7 @@ class UttProc:
 
 
     def get_sentence_type(self, utt):
+        return get_stype(utt)
         # very rough is question or not
         # TODO - improve upon this
         vrb = utt.split(" ")[0]
